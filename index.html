@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CandeletorPro - Calcolatore Candele Artigianali</title>
+  <meta name="theme-color" content="#78350f">
+  <meta name="description" content="CandeletorPro - Applicazione PWA per cererie artigianali. Calcolo cera, fragranza, colorante, costi e schede tecniche offline.">
+  
+  <!-- ICONA PERSONALIZZATA APPLE -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='%2378350f'/><path fill='%23f59e0b' d='M256 96c-44 0-80 36-80 80 0 45 40 85 64 128 14 25 16 32 16 64h0c0 18 14 32 32 32s32-14 32-32h0c0-32 2-39 16-64 24-43 64-83 64-128 0-44-36-80-80-80z'/><path fill='%23fef3c7' d='M256 64c-18 0-32 14-32 32 0 32-48 55-48 104 0 35 29 64 64 64s64-29 64-64c0-49-48-72-48-104 0-18-14-32-32-32z'/></svg>">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #fdfbf7; color: #2d2a26; }
+    .glass-card { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px); border: 1px solid rgba(229, 231, 235, 0.8); }
+
+    @media print {
+      body { background: #ffffff !important; color: #000000 !important; font-size: 11pt; }
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+    }
+    @media screen {
+      .print-only { display: none !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-12 antialiased">
+
+  <!-- HEADER -->
+  <header class="bg-amber-950 text-amber-50 sticky top-0 z-40 shadow-md no-print">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-600/30 flex items-center justify-center text-amber-300 border border-amber-600/40">
+          <i class="fa-solid fa-fire-flame-curved text-xl"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight tracking-wide">CandeletorPro <span class="text-xs font-normal text-amber-300 px-2 py-0.5 rounded bg-amber-900">PWA</span></h1>
+          <p class="text-xs text-amber-200/80">Laboratorio Calcolo Candele Artigianali</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span id="offline-badge" class="hidden text-xs bg-red-800 text-red-200 px-2 py-1 rounded-full items-center gap-1">
+          <i class="fa-solid fa-wifi-slash"></i> Offline
+        </span>
+        <button id="pwa-install-btn" onclick="triggerPwaInstall()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-download"></i> <span id="pwa-btn-text">Installa App</span>
+        </button>
+        <button onclick="openRecipesModal()" class="bg-amber-900 hover:bg-amber-800 text-amber-100 text-xs font-medium px-3 py-1.5 rounded-lg border border-amber-800/50 flex items-center gap-1">
+          <i class="fa-solid fa-book-bookmark"></i> Ricette
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- SCHEDA STAMPA A4 -->
+  <div class="print-only max-w-4xl mx-auto p-6 font-sans">
+    <div class="border-b-2 border-amber-950 pb-4 mb-5 flex justify-between items-end">
+      <div>
+        <h1 class="text-2xl font-bold text-amber-950 uppercase tracking-wider">CandeletorPro - Scheda Tecnica</h1>
+        <p class="text-sm text-gray-600">Documento di Produzione e Controllo Qualità</p>
+      </div>
+      <div class="text-right text-xs text-gray-500">
+        <p>Data Stampa: <span id="print-date"></span></p>
+        <p>Lotto N°: <span id="print-batch-id" class="font-mono font-bold"></span></p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4 mb-5 bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs">
+      <div>
+        <span class="text-gray-500 block uppercase text-[10px] font-bold">Quantità Lotto</span>
+        <span id="print-candle-count" class="font-bold text-sm text-gray-900">1 Candele</span>
+      </div>
+      <div>
+        <span class="text-gray-500 block uppercase text-[10px] font-bold">Volume / Peso Contenitore</span>
+        <span id="print-container-info" class="font-bold text-sm text-gray-900">200 g/ml</span>
+      </div>
+      <div>
+        <span class="text-gray-500 block uppercase text-[10px] font-bold">Tipologia Cera</span>
+        <span id="print-wax-type" class="font-bold text-sm text-gray-900">Cera di Soia C3</span>
+      </div>
+    </div>
+
+    <table class="w-full text-left text-xs border-collapse mb-5">
+      <thead>
+        <tr class="bg-amber-950 text-white uppercase text-[10px] tracking-wider">
+          <th class="p-2.5 border border-amber-950">Componente</th>
+          <th class="p-2.5 border border-amber-950">Proporzione / %</th>
+          <th class="p-2.5 border border-amber-950">Peso Unitario (1 pz)</th>
+          <th class="p-2.5 border border-amber-950 font-bold">Peso Totale Lotto</th>
+        </tr>
+      </thead>
+      <tbody id="print-ingredients-body" class="divide-y divide-gray-200 border border-gray-300"></tbody>
+    </table>
+
+    <div class="grid grid-cols-3 gap-3 mb-5 text-xs">
+      <div class="border border-gray-200 rounded-lg p-2.5">
+        <h3 class="font-bold text-amber-950 uppercase text-[10px] mb-1.5 border-b pb-1">Temperature Processo</h3>
+        <ul class="space-y-1 text-gray-700 text-[11px]">
+          <li class="flex justify-between"><span>Scioglimento:</span> <strong class="font-mono">75°C-80°C</strong></li>
+          <li class="flex justify-between"><span>Fragranza:</span> <strong class="font-mono">65°C-70°C</strong></li>
+          <li class="flex justify-between"><span>Colata:</span> <strong class="font-mono">50°C-55°C</strong></li>
+        </ul>
+      </div>
+
+      <div class="border border-gray-200 rounded-lg p-2.5">
+        <h3 class="font-bold text-amber-950 uppercase text-[10px] mb-1.5 border-b pb-1">Checklist Laboratorio</h3>
+        <div class="space-y-1 text-gray-600 text-[10px]">
+          <p>☐ Stoppino centrato e dritto</p>
+          <p>☐ Miscelazione essenza (2 min)</p>
+          <p>☐ Raffreddamento lento (24h)</p>
+        </div>
+      </div>
+
+      <!-- CHECKLIST PROVA ACCENSIONE -->
+      <div class="border border-amber-800/40 bg-amber-50/40 rounded-lg p-2.5">
+        <h3 class="font-bold text-amber-950 uppercase text-[10px] mb-1.5 border-b border-amber-200 pb-1 flex items-center gap-1">
+          <i class="fa-solid fa-fire text-amber-700"></i> Test Accensione
+        </h3>
+        <div class="space-y-1 text-gray-700 text-[10px]">
+          <p>☐ Altezza fiamma stabile (&lt;3cm)</p>
+          <p>☐ Assenza fumo nero / sfarfallio</p>
+          <p>☐ Fusione completa bordi (1° test)</p>
+          <p>☐ Diffusione fragranza ottimale</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="border-t border-gray-300 pt-3 mt-4 flex justify-between items-end text-xs">
+      <div class="w-2/3 pr-4">
+        <span class="text-gray-500 text-[10px] uppercase font-bold block mb-1">Note Esito Test Accensione / Osservazioni:</span>
+        <div class="border-b border-gray-300 h-8 w-full"></div>
+      </div>
+      <div class="w-1/3 text-right">
+        <span class="text-gray-500 text-[10px] uppercase font-bold block mb-4">Firma Operatore / QC</span>
+        <div class="border-b border-gray-400 w-full"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERFACCIA PRINCIPALE -->
+  <main class="max-w-7xl mx-auto px-4 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-8 no-print">
+    
+    <div class="lg:col-span-7 space-y-6">
+      
+      <!-- CONTENITORE -->
+      <section class="glass-card rounded-2xl p-6 shadow-sm border border-amber-100">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-base font-bold text-amber-950 flex items-center gap-2">
+            <i class="fa-solid fa-dumpster text-amber-600"></i> 1. Contenitore e Quantità
+          </h2>
+          <span class="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-medium">Dimensionamento</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Metodo di Calcolo</label>
+            <select id="calc-method" onchange="toggleCalcMethod()" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-sm font-medium text-gray-800 focus:ring-2 focus:ring-amber-500">
+              <option value="water">Peso Acqua nel Contenitore (consigliato)</option>
+              <option value="volume">Volume Contenitore (ml/cm³)</option>
+              <option value="direct">Peso Cera Desiderato per Candela (g)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Preset Veloce Contenitore</label>
+            <select id="container-preset" onchange="applyContainerPreset()" class="w-full bg-amber-50/70 border border-amber-300 rounded-lg p-2.5 text-sm font-bold text-amber-900 focus:ring-2 focus:ring-amber-500">
+              <option value="">-- Seleziona Formato Standard --</option>
+              <option value="120">Boccetta Ambrata (120 ml)</option>
+              <option value="200">Bicchiere Vetro Medio (200 ml)</option>
+              <option value="250">Vaso Alluminio/Latta (250 ml)</option>
+              <option value="300">Vaso Grande Bormioli (300 ml)</option>
+              <option value="70">Tealight Standard (70 ml)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div id="input-container-val">
+            <label id="input-val-label" class="block text-xs font-semibold text-gray-700 mb-1">Peso Acqua per Candela (g)</label>
+            <div class="relative">
+              <input type="number" id="container-input-val" value="200" min="1" step="0.1" oninput="calculate()" class="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-amber-500 pl-3 pr-10">
+              <span id="input-val-unit" class="absolute right-3 top-2.5 text-xs text-gray-400 font-semibold">g</span>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Numero di Candele (Lotto/Batch)</label>
+            <input type="number" id="candle-count" value="1" min="1" step="1" oninput="calculate()" class="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+      </section>
+
+      <!-- CERA -->
+      <section class="glass-card rounded-2xl p-6 shadow-sm border border-amber-100">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-base font-bold text-amber-950 flex items-center gap-2">
+            <i class="fa-solid fa-cubes text-amber-600"></i> 2. Miscela di Cera
+          </h2>
+          <span class="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-medium">Densità & Proporzioni</span>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Tipo di Cera Principale</label>
+            <select id="primary-wax-type" onchange="calculate()" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-sm font-medium text-gray-800 focus:ring-2 focus:ring-amber-500">
+              <option value="0.90">Cera di Soia C3 / Golden Wax 464 (Densità: 0.90)</option>
+              <option value="0.95">Cera d'Api Naturale (Densità: 0.95)</option>
+              <option value="0.91">Cera di Cocco (Densità: 0.91)</option>
+              <option value="0.89">Cera di Paraffina (Densità: 0.89)</option>
+              <option value="0.92">Cera di Colza / Palma (Densità: 0.92)</option>
+            </select>
+          </div>
+
+          <div class="pt-2">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold text-gray-700">Abilita Miscela Multi-Cera</span>
+              <input type="checkbox" id="blend-toggle" onchange="toggleBlendUI(); calculate();" class="w-4 h-4 text-amber-600 rounded focus:ring-amber-500">
+            </div>
+
+            <div id="blend-ui" class="hidden space-y-3 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
+              <p class="text-xs text-amber-800">Definisci le percentuali della miscela (Totale 100%):</p>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <span class="text-xs text-gray-600">Cera Principale (%)</span>
+                  <input type="number" id="wax1-pct" value="80" min="0" max="100" oninput="updateBlendPcts(1); calculate();" class="w-full bg-white border border-gray-300 rounded p-2 text-sm font-bold">
+                </div>
+                <div>
+                  <span class="text-xs text-gray-600">Seconda Cera (%)</span>
+                  <input type="number" id="wax2-pct" value="20" min="0" max="100" oninput="updateBlendPcts(2); calculate();" class="w-full bg-white border border-gray-300 rounded p-2 text-sm font-bold">
+                </div>
+              </div>
+              <div>
+                <select id="secondary-wax-type" onchange="calculate()" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-xs font-medium">
+                  <option value="0.95">Secondaria: Cera d'Api Naturale (0.95)</option>
+                  <option value="0.91">Secondaria: Cera di Cocco (0.91)</option>
+                  <option value="0.90">Secondaria: Cera di Soia (0.90)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FRAGRANZA & COLORANTE -->
+      <section class="glass-card rounded-2xl p-6 shadow-sm border border-amber-100">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-base font-bold text-amber-950 flex items-center gap-2">
+            <i class="fa-solid fa-flask text-amber-600"></i> 3. Fragranza & Colorante
+          </h2>
+          <span class="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-medium">Essenza & Colore</span>
+        </div>
+
+        <div class="space-y-5">
+          <!-- Fragranza -->
+          <div>
+            <div class="flex justify-between text-xs font-bold text-gray-700 mb-1">
+              <span>Carico Fragranza / Olio Essenziale (%)</span>
+              <span id="fragrance-pct-val" class="text-amber-700 font-bold">8%</span>
+            </div>
+            <input type="range" id="fragrance-pct" min="0" max="15" step="0.5" value="8" oninput="updateFragranceLabel(); calculate();" class="w-full accent-amber-600 cursor-pointer">
+            <div class="flex justify-between text-[10px] text-gray-400 mb-3">
+              <span>0% (Leggero)</span>
+              <span>6-8% (Standard)</span>
+              <span>10-12% (Intenso / Max C3)</span>
+            </div>
+            <div class="p-2.5 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-900 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-droplet text-blue-600"></i>
+                <span class="font-medium">Equivalenza Fragranza:</span>
+              </div>
+              <span id="fragrance-drop-eq" class="font-bold text-blue-950">1 ml ≈ 20 gocce</span>
+            </div>
+          </div>
+
+          <hr class="border-amber-100">
+
+          <!-- Colorante -->
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <label class="text-xs font-bold text-gray-800 flex items-center gap-1">
+                <i class="fa-solid fa-palette text-amber-600"></i> Tipo di Colorante
+              </label>
+              <select id="dye-type" onchange="calculate()" class="bg-gray-50 border border-gray-300 rounded-lg p-1.5 text-xs font-medium">
+                <option value="liquid">Colorante Liquido (Gocce)</option>
+                <option value="chips">Colorante in Scaglie/Polvere (Grammi)</option>
+              </select>
+            </div>
+
+            <div class="bg-amber-50 rounded-xl p-3 border border-amber-200/80 space-y-2">
+              <div class="flex items-start gap-2">
+                <i class="fa-solid fa-lightbulb text-amber-600 mt-0.5 text-sm"></i>
+                <div class="text-xs text-amber-900 w-full">
+                  <div class="flex justify-between items-center mb-1">
+                    <span class="font-bold">Consiglio Dose Intelligente:</span>
+                    <select id="color-intensity" onchange="calculate()" class="bg-white border border-amber-300 rounded px-2 py-0.5 text-xs font-semibold text-amber-900 focus:ring-1 focus:ring-amber-500">
+                      <option value="light">Pastello / Chiaro</option>
+                      <option value="medium" selected>Media / Standard</option>
+                      <option value="intense">Intensa / Scuro</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div id="dye-recommendation-box" class="text-xs font-medium text-amber-950 bg-white/80 p-2.5 rounded-lg border border-amber-200"></div>
+            </div>
+
+            <div class="p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-900 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-calculator text-blue-600"></i>
+                <span class="font-medium">Equivalenza Colorante:</span>
+              </div>
+              <span id="drop-equivalence-text" class="font-bold text-blue-950">1 g ≈ 20 gocce (1 goccia = 0.05 g)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- COSTI -->
+      <section class="glass-card rounded-2xl p-6 shadow-sm border border-amber-100">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-base font-bold text-amber-950 flex items-center gap-2">
+            <i class="fa-solid fa-coins text-amber-600"></i> 4. Calcolatore Costi & Margini
+          </h2>
+          <span class="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-medium">Analisi Monetaria</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Costo Cera (€/kg)</label>
+            <input type="number" id="cost-wax" value="12.00" step="0.5" oninput="calculate()" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-xs font-bold">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Costo Fragranza (€/100ml)</label>
+            <input type="number" id="cost-fragrance" value="15.00" step="0.5" oninput="calculate()" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-xs font-bold">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Contenitore + Stoppino (€/unita)</label>
+            <input type="number" id="cost-container" value="1.50" step="0.1" oninput="calculate()" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-xs font-bold">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 bg-amber-50/60 p-3.5 rounded-xl border border-amber-200">
+          <div>
+            <span class="text-xs text-gray-600 block">Costo Materia Prima (1 Candela)</span>
+            <span id="single-cost-val" class="text-base font-extrabold text-amber-900">€ 0,00</span>
+          </div>
+          <div>
+            <span class="text-xs text-gray-600 block">Prezzo Vendita Consigliato (x3.5)</span>
+            <span id="retail-price-val" class="text-base font-extrabold text-emerald-700">€ 0,00</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- RISULTATI (DESTRA) -->
+    <div class="lg:col-span-5 space-y-6">
+      
+      <div class="glass-card rounded-2xl p-6 shadow-md border-2 border-amber-500/30 sticky top-20">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-bold text-amber-950 flex items-center gap-2">
+            <i class="fa-solid fa-clipboard-check text-amber-600"></i> Dosaggi Finali
+          </h2>
+          <button onclick="window.print()" class="no-print text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm transition-all flex items-center gap-1.5">
+            <i class="fa-solid fa-print"></i> Stampa Scheda
+          </button>
+        </div>
+
+        <div class="space-y-3 mb-6">
+          <div class="bg-amber-600 text-white p-4 rounded-xl shadow-sm flex justify-between items-center">
+            <div>
+              <span class="text-xs opacity-90 block uppercase tracking-wider font-semibold">Cera Totale Richiesta</span>
+              <span id="res-wax-total" class="text-2xl font-black">0 g</span>
+            </div>
+            <i class="fa-solid fa-weight-hanging text-3xl opacity-30"></i>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-amber-50 p-3.5 rounded-xl border border-amber-200">
+              <span class="text-xs text-amber-800 font-semibold block">Essenza/Fragranza</span>
+              <span id="res-fragrance-total" class="text-lg font-bold text-amber-950">0 g</span>
+            </div>
+            <div class="bg-amber-50 p-3.5 rounded-xl border border-amber-200">
+              <span class="text-xs text-amber-800 font-semibold block">Colorante Consigliato</span>
+              <span id="res-dye-total" class="text-lg font-bold text-amber-950">0 gocce</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 border-t border-gray-200 pt-4 text-xs">
+          <div class="flex justify-between text-gray-600 py-1 border-b border-gray-100">
+            <span>Peso Cera x Singola Candela:</span>
+            <span id="res-wax-single" class="font-bold text-gray-800">0 g</span>
+          </div>
+          <div id="res-blend-breakdown" class="space-y-1 pl-2 text-amber-800 hidden"></div>
+          <div class="flex justify-between text-gray-600 py-1 border-b border-gray-100">
+            <span>Volume Totale Miscela Liquida:</span>
+            <span id="res-volume-total" class="font-bold text-gray-800">0 ml</span>
+          </div>
+          <div class="flex justify-between text-gray-600 py-1 border-b border-gray-100">
+            <span>Costo Totale Lotto (<span id="res-batch-count">1</span> pz):</span>
+            <span id="res-cost-batch" class="font-bold text-gray-800">€ 0,00</span>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-gray-200">
+          <h3 class="text-xs font-bold text-gray-700 mb-2">Composizione Miscela Totale</h3>
+          <div class="h-44">
+            <canvas id="compositionChart"></canvas>
+          </div>
+        </div>
+
+        <div class="mt-6 space-y-2 no-print">
+          <button onclick="saveCurrentRecipe()" class="w-full bg-amber-950 hover:bg-amber-900 text-white font-bold py-2.5 rounded-xl shadow-sm transition-all text-xs flex items-center justify-center gap-2">
+            <i class="fa-solid fa-floppy-disk"></i> Salva Ricetta nel Browser
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- MODALE RICETTE -->
+  <div id="recipes-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-amber-100 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-bold text-amber-950 text-base flex items-center gap-2">
+          <i class="fa-solid fa-book-bookmark text-amber-600"></i> Ricette Salvate
+        </h3>
+        <button onclick="closeRecipesModal()" class="text-gray-400 hover:text-gray-600">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div id="recipes-list" class="space-y-2 max-h-60 overflow-y-auto py-2"></div>
+
+      <div class="pt-2 border-t flex justify-end">
+        <button onclick="closeRecipesModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg text-xs">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- MANIFEST E SERVICE WORKER DINAMICI VIA BLOB URL (SINGLE FILE PWA) ---
+    const svgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='%2378350f'/><path fill='%23f59e0b' d='M256 96c-44 0-80 36-80 80 0 45 40 85 64 128 14 25 16 32 16 64h0c0 18 14 32 32 32s32-14 32-32h0c0-32 2-39 16-64 24-43 64-83 64-128 0-44-36-80-80-80z'/><path fill='%23fef3c7' d='M256 64c-18 0-32 14-32 32 0 32-48 55-48 104 0 35 29 64 64 64s64-29 64-64c0-49-48-72-48-104 0-18-14-32-32-32z'/></svg>`;
+    
+    // Inserimento Icona Principale
+    const linkIcon = document.createElement('link');
+    linkIcon.rel = 'icon';
+    linkIcon.type = 'image/svg+xml';
+    linkIcon.href = 'data:image/svg+xml,' + encodeURIComponent(svgIcon);
+    document.head.appendChild(linkIcon);
+
+    // Inserimento Manifest Dinamico
+    const manifestData = {
+      short_name: "CandeletorPro",
+      name: "CandeletorPro - Calcolatore Candele",
+      icons: [{ src: 'data:image/svg+xml,' + encodeURIComponent(svgIcon), type: "image/svg+xml", sizes: "512x512", purpose: "any maskable" }],
+      start_url: window.location.href,
+      background_color: "#fdfbf7",
+      theme_color: "#78350f",
+      display: "standalone",
+      orientation: "portrait"
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+    const manifestLink = document.createElement('link');
+    manifestLink.rel = 'manifest';
+    manifestLink.href = URL.createObjectURL(manifestBlob);
+    document.head.appendChild(manifestLink);
+
+    // Registrazione Service Worker Offline-First via Blob URL
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        const CACHE_NAME = 'candeletorpro-blob-v1';
+        self.addEventListener('install', e => {
+          e.waitUntil(caches.open(CACHE_NAME).then(c => c.add(self.registration.scope)));
+          self.skipWaiting();
+        });
+        self.addEventListener('activate', e => { self.clients.claim(); });
+        self.addEventListener('fetch', e => {
+          e.respondWith(
+            caches.match(e.request).then(res => res || fetch(e.request).catch(() => caches.match('./')))
+          );
+        });
+      `;
+      const swBlob = new Blob([swCode], { type: 'application/javascript' });
+      navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+    }
+
+    // Gestione Evento Installazione PWA
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('pwa-install-btn');
+      if (btn) btn.classList.remove('hidden');
+    });
+
+    function triggerPwaInstall() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            document.getElementById('pwa-install-btn').classList.add('hidden');
+          }
+          deferredPrompt = null;
+        });
+      } else {
+        alert("Per installare CandeletorPro:\n\n- Android / PC (Chrome): Clicca sul menu in alto a destra (tre puntini) e seleziona 'Installa app'.\n- iPhone (Safari): Tocca il tasto 'Condividi' e seleziona 'Aggiungi alla schermata Home'.");
+      }
+    }
+
+    // Monitoraggio Stato Online/Offline
+    window.addEventListener('online', () => document.getElementById('offline-badge').classList.add('hidden'));
+    window.addEventListener('offline', () => document.getElementById('offline-badge').classList.remove('hidden'));
+
+    // --- LOGICA APPLICAZIONE ---
+    let compChart = null;
+
+    function initChart() {
+      const ctx = document.getElementById('compositionChart').getContext('2d');
+      compChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Cera', 'Fragranza'],
+          datasets: [{
+            data: [92, 8],
+            backgroundColor: ['#d97706', '#f59e0b'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } }
+        }
+      });
+    }
+
+    function toggleCalcMethod() {
+      const method = document.getElementById('calc-method').value;
+      const label = document.getElementById('input-val-label');
+      const unit = document.getElementById('input-val-unit');
+
+      if (method === 'water') {
+        label.innerText = 'Peso Acqua per Candela (g)';
+        unit.innerText = 'g';
+      } else if (method === 'volume') {
+        label.innerText = 'Volume del Contenitore (ml)';
+        unit.innerText = 'ml';
+      } else {
+        label.innerText = 'Peso Cera Desiderato (g)';
+        unit.innerText = 'g';
+      }
+      calculate();
+    }
+
+    function applyContainerPreset() {
+      const val = document.getElementById('container-preset').value;
+      if (val) {
+        document.getElementById('calc-method').value = 'water';
+        document.getElementById('container-input-val').value = val;
+        toggleCalcMethod();
+      }
+    }
+
+    function toggleBlendUI() {
+      const isBlend = document.getElementById('blend-toggle').checked;
+      const blendUI = document.getElementById('blend-ui');
+      if (isBlend) blendUI.classList.remove('hidden');
+      else blendUI.classList.add('hidden');
+    }
+
+    function updateBlendPcts(changed) {
+      const w1 = document.getElementById('wax1-pct');
+      const w2 = document.getElementById('wax2-pct');
+      if (changed === 1) w2.value = Math.max(0, 100 - parseFloat(w1.value || 0));
+      else w1.value = Math.max(0, 100 - parseFloat(w2.value || 0));
+    }
+
+    function updateFragranceLabel() {
+      const val = document.getElementById('fragrance-pct').value;
+      document.getElementById('fragrance-pct-val').innerText = val + '%';
+    }
+
+    function calculate() {
+      const method = document.getElementById('calc-method').value;
+      const containerVal = parseFloat(document.getElementById('container-input-val').value) || 0;
+      const count = parseInt(document.getElementById('candle-count').value) || 1;
+      const isBlend = document.getElementById('blend-toggle').checked;
+      
+      const primaryWaxSelect = document.getElementById('primary-wax-type');
+      const wax1Name = primaryWaxSelect.options[primaryWaxSelect.selectedIndex].text.split(' (')[0];
+      const wax1Density = parseFloat(primaryWaxSelect.value);
+
+      const secondaryWaxSelect = document.getElementById('secondary-wax-type');
+      const wax2Name = secondaryWaxSelect.options[secondaryWaxSelect.selectedIndex].text.split(' (')[0];
+      const wax2Density = parseFloat(secondaryWaxSelect.value);
+      
+      let effectiveDensity = wax1Density;
+      let wax1Pct = 100;
+      let wax2Pct = 0;
+
+      if (isBlend) {
+        wax1Pct = parseFloat(document.getElementById('wax1-pct').value) || 0;
+        wax2Pct = parseFloat(document.getElementById('wax2-pct').value) || 0;
+        effectiveDensity = ((wax1Pct * wax1Density) + (wax2Pct * wax2Density)) / 100;
+      }
+
+      let waxWeightSingle = 0;
+      if (method === 'water' || method === 'volume') {
+        waxWeightSingle = containerVal * effectiveDensity;
+      } else {
+        waxWeightSingle = containerVal;
+      }
+
+      const fragrancePct = parseFloat(document.getElementById('fragrance-pct').value) || 0;
+      const fragranceWeightSingle = waxWeightSingle * (fragrancePct / 100);
+
+      const totalWaxBatch = waxWeightSingle * count;
+      const totalFragranceBatch = fragranceWeightSingle * count;
+      const totalVolumeBatch = (totalWaxBatch / effectiveDensity) + totalFragranceBatch;
+
+      // Equivalenza Fragranza
+      const fragranceDrops = Math.round(totalFragranceBatch * 21);
+      document.getElementById('fragrance-drop-eq').innerText = `${totalFragranceBatch.toFixed(1)} g ≈ ${fragranceDrops} gocce`;
+
+      // Colorante
+      const dyeType = document.getElementById('dye-type').value;
+      const intensity = document.getElementById('color-intensity').value;
+      
+      let dyeRecText = "";
+      let dyeTotalDisplay = "";
+
+      let dropsPer100g = 2;
+      if (intensity === 'light') dropsPer100g = 1;
+      if (intensity === 'intense') dropsPer100g = 4;
+
+      const totalRecommendedDrops = Math.round((totalWaxBatch / 100) * dropsPer100g);
+      const totalRecommendedGrams = ((totalWaxBatch / 100) * (dropsPer100g * 0.05)).toFixed(2);
+
+      if (dyeType === 'liquid') {
+        dyeRecText = `Per un'intensità <b>${intensity.toUpperCase()}</b> consigliamo <b>${totalRecommendedDrops} gocce</b> (~${totalRecommendedGrams}g).`;
+        dyeTotalDisplay = `${totalRecommendedDrops} gocce (~${totalRecommendedGrams} g)`;
+        document.getElementById('drop-equivalence-text').innerText = "1 g ≈ 20 gocce (1 goccia = 0.05 g)";
+      } else {
+        let chipPct = 0.15;
+        if (intensity === 'light') chipPct = 0.08;
+        if (intensity === 'intense') chipPct = 0.3;
+        const chipGrams = ((totalWaxBatch * chipPct) / 100).toFixed(2);
+        const approxDrops = Math.round(chipGrams * 20);
+
+        dyeRecText = `Per un'intensità <b>${intensity.toUpperCase()}</b> consigliamo <b>${chipGrams} g</b> (pari a ~${approxDrops} gocce).`;
+        dyeTotalDisplay = `${chipGrams} g (~${approxDrops} gocce eq.)`;
+        document.getElementById('drop-equivalence-text').innerText = "1 g scaglie ≈ 0.1% - 0.2% del peso cera";
+      }
+
+      document.getElementById('dye-recommendation-box').innerHTML = dyeRecText;
+
+      const costWaxKg = parseFloat(document.getElementById('cost-wax').value) || 0;
+      const costFrag100ml = parseFloat(document.getElementById('cost-fragrance').value) || 0;
+      const costContainerWick = parseFloat(document.getElementById('cost-container').value) || 0;
+
+      const costWaxSingle = (waxWeightSingle / 1000) * costWaxKg;
+      const costFragranceSingle = (fragranceWeightSingle) * (costFrag100ml / 100);
+      const costSingleCandle = costWaxSingle + costFragranceSingle + costContainerWick;
+      const costBatch = costSingleCandle * count;
+      const recommendedRetail = costSingleCandle * 3.5;
+
+      document.getElementById('res-wax-total').innerText = Math.round(totalWaxBatch) + ' g';
+      document.getElementById('res-fragrance-total').innerText = `${totalFragranceBatch.toFixed(1)} g (${fragranceDrops} gocce)`;
+      document.getElementById('res-dye-total').innerText = dyeTotalDisplay;
+      document.getElementById('res-wax-single').innerText = Math.round(waxWeightSingle) + ' g';
+      document.getElementById('res-volume-total').innerText = Math.round(totalVolumeBatch) + ' ml';
+      document.getElementById('res-batch-count').innerText = count;
+      document.getElementById('res-cost-batch').innerText = '€ ' + costBatch.toFixed(2);
+      
+      document.getElementById('single-cost-val').innerText = '€ ' + costSingleCandle.toFixed(2);
+      document.getElementById('retail-price-val').innerText = '€ ' + recommendedRetail.toFixed(2);
+
+      const blendBreakdown = document.getElementById('res-blend-breakdown');
+      if (isBlend) {
+        blendBreakdown.classList.remove('hidden');
+        const w1Grams = Math.round(totalWaxBatch * (wax1Pct / 100));
+        const w2Grams = Math.round(totalWaxBatch * (wax2Pct / 100));
+        blendBreakdown.innerHTML = `
+          <div class="flex justify-between">• Cera 1 (${wax1Pct}%): <span>${w1Grams} g</span></div>
+          <div class="flex justify-between">• Cera 2 (${wax2Pct}%): <span>${w2Grams} g</span></div>
+        `;
+      } else {
+        blendBreakdown.classList.add('hidden');
+      }
+
+      if (compChart) {
+        compChart.data.datasets[0].data = [Math.round(totalWaxBatch), totalFragranceBatch.toFixed(1)];
+        compChart.update();
+      }
+
+      updatePrintSheet({
+        count,
+        containerVal,
+        isBlend,
+        wax1Name,
+        wax1Pct,
+        wax1GramsSingle: waxWeightSingle * (wax1Pct / 100),
+        wax1GramsTotal: totalWaxBatch * (wax1Pct / 100),
+        wax2Name,
+        wax2Pct,
+        wax2GramsSingle: waxWeightSingle * (wax2Pct / 100),
+        wax2GramsTotal: totalWaxBatch * (wax2Pct / 100),
+        fragrancePct,
+        fragranceWeightSingle,
+        fragranceDrops,
+        totalFragranceBatch,
+        dyeType,
+        intensity,
+        totalRecommendedDrops,
+        totalRecommendedGrams,
+        dyeTotalDisplay
+      });
+    }
+
+    function updatePrintSheet(data) {
+      const today = new Date().toLocaleDateString('it-IT');
+      document.getElementById('print-date').innerText = today;
+      document.getElementById('print-batch-id').innerText = 'LOT-' + Math.floor(1000 + Math.random() * 9000);
+      document.getElementById('print-candle-count').innerText = data.count + ' Unità';
+      document.getElementById('print-container-info').innerText = data.containerVal + ' g/ml';
+      document.getElementById('print-wax-type').innerText = data.isBlend ? 'Miscela Personalizzata' : data.wax1Name;
+
+      const tbody = document.getElementById('print-ingredients-body');
+      let html = '';
+
+      if (!data.isBlend) {
+        html += `
+          <tr class="hover:bg-gray-50">
+            <td class="p-2.5 border border-gray-300 font-bold">${data.wax1Name}</td>
+            <td class="p-2.5 border border-gray-300">100% Cera Base</td>
+            <td class="p-2.5 border border-gray-300">${Math.round(data.wax1GramsSingle)} g</td>
+            <td class="p-2.5 border border-gray-300 font-bold text-amber-950">${Math.round(data.wax1GramsTotal)} g</td>
+          </tr>
+        `;
+      } else {
+        html += `
+          <tr class="hover:bg-gray-50">
+            <td class="p-2.5 border border-gray-300 font-bold">${data.wax1Name}</td>
+            <td class="p-2.5 border border-gray-300">${data.wax1Pct}% Miscela</td>
+            <td class="p-2.5 border border-gray-300">${Math.round(data.wax1GramsSingle)} g</td>
+            <td class="p-2.5 border border-gray-300 font-bold text-amber-950">${Math.round(data.wax1GramsTotal)} g</td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="p-2.5 border border-gray-300 font-bold">${data.wax2Name}</td>
+            <td class="p-2.5 border border-gray-300">${data.wax2Pct}% Miscela</td>
+            <td class="p-2.5 border border-gray-300">${Math.round(data.wax2GramsSingle)} g</td>
+            <td class="p-2.5 border border-gray-300 font-bold text-amber-950">${Math.round(data.wax2GramsTotal)} g</td>
+          </tr>
+        `;
+      }
+
+      html += `
+        <tr class="hover:bg-gray-50">
+          <td class="p-2.5 border border-gray-300 font-bold">Fragranza / Olio Essenziale</td>
+          <td class="p-2.5 border border-gray-300">${data.fragrancePct}% su peso cera</td>
+          <td class="p-2.5 border border-gray-300">${data.fragranceWeightSingle.toFixed(1)} g</td>
+          <td class="p-2.5 border border-gray-300 font-bold text-amber-950">${data.totalFragranceBatch.toFixed(1)} g (~${data.fragranceDrops} gocce)</td>
+        </tr>
+        <tr class="hover:bg-gray-50">
+          <td class="p-2.5 border border-gray-300 font-bold">Colorante (${data.dyeType === 'liquid' ? 'Liquido' : 'Scaglie'})</td>
+          <td class="p-2.5 border border-gray-300">Tonalità ${data.intensity.toUpperCase()}</td>
+          <td class="p-2.5 border border-gray-300">-</td>
+          <td class="p-2.5 border border-gray-300 font-bold text-amber-950">${data.dyeTotalDisplay}</td>
+        </tr>
+      `;
+
+      tbody.innerHTML = html;
+    }
+
+    function saveCurrentRecipe() {
+      const name = prompt("Inserisci un nome per la ricetta (es. Candela Vaniglia 200ml):");
+      if (!name) return;
+
+      const recipe = {
+        id: Date.now(),
+        name: name,
+        calcMethod: document.getElementById('calc-method').value,
+        containerVal: document.getElementById('container-input-val').value,
+        candleCount: document.getElementById('candle-count').value,
+        primaryWax: document.getElementById('primary-wax-type').value,
+        fragrancePct: document.getElementById('fragrance-pct').value,
+        colorIntensity: document.getElementById('color-intensity').value,
+        dyeType: document.getElementById('dye-type').value
+      };
+
+      let recipes = JSON.parse(localStorage.getItem('candeletor_recipes') || '[]');
+      recipes.push(recipe);
+      localStorage.setItem('candeletor_recipes', JSON.stringify(recipes));
+      alert("Ricetta salvata con successo!");
+    }
+
+    function openRecipesModal() {
+      const modal = document.getElementById('recipes-modal');
+      const list = document.getElementById('recipes-list');
+      let recipes = JSON.parse(localStorage.getItem('candeletor_recipes') || '[]');
+
+      if (recipes.length === 0) {
+        list.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Nessuna ricetta salvata.</p>';
+      } else {
+        list.innerHTML = recipes.map(r => `
+          <div class="flex justify-between items-center bg-gray-50 p-2.5 rounded-lg border border-gray-200">
+            <div>
+              <span class="font-bold text-xs text-gray-800 block">${r.name}</span>
+              <span class="text-[10px] text-gray-500">${r.containerVal}g/ml - ${r.fragrancePct}% essenza</span>
+            </div>
+            <div class="flex gap-1">
+              <button onclick="loadRecipe(${r.id})" class="bg-amber-600 text-white text-[10px] px-2 py-1 rounded font-semibold">Carica</button>
+              <button onclick="deleteRecipe(${r.id})" class="bg-red-500 text-white text-[10px] px-2 py-1 rounded"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeRecipesModal() {
+      document.getElementById('recipes-modal').classList.add('hidden');
+    }
+
+    function loadRecipe(id) {
+      let recipes = JSON.parse(localStorage.getItem('candeletor_recipes') || '[]');
+      const r = recipes.find(x => x.id === id);
+      if (r) {
+        document.getElementById('calc-method').value = r.calcMethod;
+        document.getElementById('container-input-val').value = r.containerVal;
+        document.getElementById('candle-count').value = r.candleCount;
+        document.getElementById('primary-wax-type').value = r.primaryWax;
+        document.getElementById('fragrance-pct').value = r.fragrancePct;
+        if(r.colorIntensity) document.getElementById('color-intensity').value = r.colorIntensity;
+        if(r.dyeType) document.getElementById('dye-type').value = r.dyeType;
+
+        toggleCalcMethod();
+        updateFragranceLabel();
+        calculate();
+        closeRecipesModal();
+      }
+    }
+
+    function deleteRecipe(id) {
+      let recipes = JSON.parse(localStorage.getItem('candeletor_recipes') || '[]');
+      recipes = recipes.filter(x => x.id !== id);
+      localStorage.setItem('candeletor_recipes', JSON.stringify(recipes));
+      openRecipesModal();
+    }
+
+    window.onload = () => {
+      initChart();
+      calculate();
+    };
+  </script>
+</body>
+</html>
